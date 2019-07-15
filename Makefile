@@ -3,57 +3,63 @@ mkfile_dir := $(dir $(mkfile_path))
 
 export TOP = ${mkfile_dir}
 
-KERNEL_VERSION = $(shell cat ${TOP}/build/linux-x86-basic/.config | grep "Kernel Configuration" | awk '{print $$3}')
+ARCH ?= x86_64
+IMG_TYPE = bzImage
+BUILD_DIR = ${TOP}build
+KERNEL_DIR = ${TOP}linux
+BUSYBOX_DIR = ${TOP}busybox
+MESH_DIR = ${TOP}mesh
+FILESYSTEM_DIR = ${TOP}filesystem
 
-.PHONY: all_conf configure linux busybox busybox_package filesystem package mesh all menuconfig-linux menuconfig-busybox
+KERNEL_VERSION = $(shell cat ${BUILD_DIR}/linux/include/config/kernel.release)
+
+.PHONY: configure linux busybox busybox_package filesystem package mesh all menuconfig-linux menuconfig-busybox
 
 all: linux busybox mesh package 
 
-all_conf: configure all
-
 configure:
-	@mkdir -p ${TOP}/build/busybox-x86
-	@$(MAKE) -C ${TOP}/busybox O=${TOP}/build/busybox-x86 defconfig
-	@$(MAKE) -C ${TOP}/linux O=${TOP}/build/linux-x86-basic x86_64_defconfig
-	@$(MAKE) -C ${TOP}/linux O=${TOP}/build/linux-x86-basic kvmconfig
+	@mkdir -p ${BUILD_DIR}/busybox
+	@$(MAKE) -C ${BUSYBOX_DIR} O=${BUILD_DIR}/busybox defconfig
+	@$(MAKE) -C ${KERNEL_DIR} O=${BUILD_DIR}/linux ${ARCH}_defconfig
+	@$(MAKE) -C ${KERNEL_DIR} O=${BUILD_DIR}/linux kvmconfig
 
-	sed -i '/CONFIG_STATIC/d' ${TOP}/build/busybox-x86/.config
-	echo "CONFIG_STATIC=y" >> ${TOP}/build/busybox-x86/.config
+	sed -i '/CONFIG_STATIC/d' ${BUILD_DIR}/busybox/.config
+	echo "CONFIG_STATIC=y" >> ${BUILD_DIR}/busybox/.config
 
 linux:
-	@$(MAKE) -C ${TOP}/linux O=${TOP}/build/linux-x86-basic
+	@$(MAKE) -C ${KERNEL_DIR} O=${BUILD_DIR}/linux
 
 menuconfig-linux:
-	@$(MAKE) -C ${TOP}/linux O=${TOP}/build/linux-x86-basic menuconfig
+	@$(MAKE) -C ${KERNEL_DIR} O=${TOP}/build/linux menuconfig
 
 menuconfig-busybox:
-	@$(MAKE) -C ${TOP}/busybox O=${TOP}/build/busybox-x86 menuconfig 
+	@$(MAKE) -C ${BUSYBOX_DIR} O=${TOP}/build/busybox menuconfig 
 
 mesh:
-	@mkdir -pv ${TOP}/build/initramfs/busybox-x86/lib/modules
-	@$(MAKE) -C ${TOP}/build/linux-x86-basic M=${TOP}/mesh INSTALL_MOD_STRIP=1 
-	@$(MAKE) -C ${TOP}/build/linux-x86-basic M=${TOP}/mesh INSTALL_MOD_PATH=${TOP}/build/initramfs/busybox-x86/ INSTALL_MOD_STRIP=1 modules_install
+	@mkdir -pv ${BUILD_DIR}/initramfs/busybox/lib/modules
+	@$(MAKE) -C ${BUILD_DIR}/linux M=${MESH_DIR} INSTALL_MOD_STRIP=1 
+	@$(MAKE) -C ${BUILD_DIR}/linux M=${MESH_DIR} INSTALL_MOD_PATH=${BUILD_DIR}/initramfs/busybox/ INSTALL_MOD_STRIP=1 modules_install
 
-	ls -Llh ${TOP}/build/initramfs/busybox-x86/lib/modules/${KERNEL_VERSION}/extra/mesh.ko
+	@ls -Llh ${BUILD_DIR}/initramfs/busybox/lib/modules/${KERNEL_VERSION}/extra/mesh.ko
 
 busybox:
-	@$(MAKE) -C ${TOP}/build/busybox-x86
-	@$(MAKE) -C ${TOP}/build/busybox-x86 install
+	@$(MAKE) -C ${BUILD_DIR}/busybox
+	@$(MAKE) -C ${BUILD_DIR}/busybox install
 
 busybox_package:
-	@mkdir -p ${TOP}/build/initramfs/busybox-x86
-	@mkdir -p ${TOP}/build/initramfs/busybox-x86/{bin,sbin,etc,proc,sys,usr/{bin,sbin}}
-	@cp -a ${TOP}/build/busybox-x86/_install/* ${TOP}/build/initramfs/busybox-x86/
+	@mkdir -p ${BUILD_DIR}/initramfs/busybox
+	@mkdir -p ${BUILD_DIR}/initramfs/busybox/{bin,sbin,etc,proc,sys,usr/{bin,sbin}}
+	@cp -a ${BUILD_DIR}/busybox/_install/* ${BUILD_DIR}/initramfs/busybox/
 
 filesystem:
-	@cp -av ${TOP}/filesystem/* ${TOP}/build/initramfs/busybox-x86/
-	@chmod +x ${TOP}/build/initramfs/busybox-x86/init
+	@cp -av ${FILESYSTEM_DIR}/* ${BUILD_DIR}/initramfs/busybox/
+	@chmod +x ${BUILD_DIR}/initramfs/busybox/init
 
 package: busybox_package filesystem
-	@cd ${TOP}/build/initramfs/busybox-x86/ && find . -print0 | cpio --null -ov --format=newc | bzip2 -9 > ${TOP}/build/initramfs-busybox-x86.img
+	@cd ${BUILD_DIR}/initramfs/busybox/ && find . -print0 | cpio --null -ov --format=newc | bzip2 -9 > ${BUILD_DIR}/initramfs-busybox.img
 	
-	@ls -Llh ${TOP}/build/initramfs-busybox-x86.img
-	@ls -Llh ${TOP}/build/linux-x86-basic/arch/x86_64/boot/bzImage
+	@ls -Llh ${BUILD_DIR}/initramfs-busybox.img
+	@ls -Llh ${BUILD_DIR}/linux/arch/${ARCH}/boot/${IMG_TYPE}
 
 clean:
 	@$(MAKE) -C ${TOP}/build/linux-x86-basic mrproper
