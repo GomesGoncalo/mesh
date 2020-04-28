@@ -106,7 +106,7 @@ out:
 	return count;
 }
 
-static struct file_operations dyn_proc_fops = {
+static struct proc_ops dyn_proc_fops = {
 	.owner   = THIS_MODULE,
 	.open    = dyn_proc_open,
 	.read    = seq_read,
