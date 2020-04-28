@@ -13,7 +13,7 @@ FILESYSTEM_DIR = ${TOP}filesystem
 
 KERNEL_VERSION = $(shell cat ${BUILD_DIR}/linux/include/config/kernel.release)
 
-.PHONY: configure linux busybox busybox_package filesystem package mesh all menuconfig-linux menuconfig-busybox
+.PHONY: configure linux busybox busybox_package filesystem package mesh all menuconfig-linux menuconfig-busybox clean clean_config
 
 all: linux busybox mesh package 
 
@@ -62,7 +62,14 @@ package: busybox_package filesystem
 	@ls -Llh ${BUILD_DIR}/linux/arch/${ARCH}/boot/${IMG_TYPE}
 
 clean:
-	@$(MAKE) -C ${TOP}/build/linux-x86-basic mrproper
+	@$(MAKE) -C ${KERNEL_DIR} O=${BUILD_DIR}/linux clean
+	@$(MAKE) -C ${BUILD_DIR}/busybox clean
+	@$(MAKE) -C ${BUILD_DIR}/linux M=${MESH_DIR} INSTALL_MOD_STRIP=1 clean
+	@rm ${BUILD_DIR}/initramfs-busybox.img || true
+
+clean_config: clean
+	@$(MAKE) -C ${KERNEL_DIR} O=${BUILD_DIR}/linux mrproper
+	@$(MAKE) -C ${BUILD_DIR}/busybox mrproper
 
 run:
 	@qemu-system-x86_64 -kernel ${BUILD_DIR}/linux/arch/${ARCH}/boot/${IMG_TYPE} -append "console=ttyS0" -initrd ${BUILD_DIR}/initramfs-busybox.img --enable-kvm --nographic
