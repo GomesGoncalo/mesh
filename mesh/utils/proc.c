@@ -106,15 +106,20 @@ out:
 	return count;
 }
 
-static struct file_operations dyn_proc_fops = {
-	.owner   = THIS_MODULE,
-	.open    = dyn_proc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.write   = dyn_proc_write,
-	.poll    = NULL,
-	.unlocked_ioctl = NULL,
+
+static struct proc_ops dyn_proc_fops = {
+	.proc_open = dyn_proc_open,
+	.proc_read = seq_read,
+	.proc_write = dyn_proc_write,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+	.proc_poll = NULL,
+	.proc_ioctl = NULL,
+#ifdef CONFIG_COMPAT
+	.proc_compat_ioctl = NULL,
+#endif
+	.proc_mmap = NULL,
+	.proc_get_unmapped_area = NULL,
 };
 
 char *my_strndup(const char *s, size_t max, gfp_t gfp)
