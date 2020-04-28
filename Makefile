@@ -63,3 +63,6 @@ package: busybox_package filesystem
 
 clean:
 	@$(MAKE) -C ${TOP}/build/linux-x86-basic mrproper
+
+run:
+	@qemu-system-x86_64 -kernel ${BUILD_DIR}/linux/arch/${ARCH}/boot/${IMG_TYPE} -append "console=ttyS0" -initrd ${BUILD_DIR}/initramfs-busybox.img --enable-kvm --nographic
